@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import socketio
 import openai
@@ -10,8 +11,16 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
-sio = socketio.AsyncServer(async_mode='asgi')
-socket_app = socketio.ASGIApp(sio)
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*")
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dictionary to maintain the state of each user session
 user_sessions = {}
@@ -25,13 +34,12 @@ async def get_response_from_gpt(query):
     return response.choices[0].text.strip()
 
 async def fetch_trainings(status, employee_id):
-    # Mock API call to HR management system
-    if status == "pending":
-        response = requests.get(f"http://yourhrsystem/api/trainings?status=pending&employee_id={employee_id}")
-    else:
-        response = requests.get(f"http://yourhrsystem/api/trainings?status=completed&employee_id={employee_id}")
-    data = response.json()
-    return data
+    url = "http://testapi.romeohr.com/app/v1/82c3391d-2e65-43b9-a514-03b14ff3fcb1/training-category"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('ACCESS_TOKEN')}"
+    }
+    response = requests.get(url, headers=headers, params={"status": status, "employee_id": employee_id})
+    return response.json()
 
 @sio.event
 async def connect(sid, environ):
@@ -72,10 +80,6 @@ async def message(sid, data):
 
     await sio.emit('chat_response', {'response': response_text}, room=sid)
 
-# Mount Socket.IO app under FastAPI
-app.mount('/ws', socket_app)
-
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(socket_app, host="0.0.0.0", port=8000)

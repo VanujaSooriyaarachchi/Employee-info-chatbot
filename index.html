@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Client</title>
+    <script src="https://cdn.socket.io/5.3.0/socket.io.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const socket = io('ws://localhost:8000', {
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+            });
+
+            socket.on('chat_response', (data) => {
+                console.log('Response from server:', data);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+            });
+
+            setTimeout(() => {
+                socket.send({ query: "Hello, server!" });
+            }, 1000);
+        });
+    </script>
+</head>
+<body>
+    <h1>Socket.IO Client</h1>
+</body>
+</html>
