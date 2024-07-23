@@ -1,19 +1,14 @@
 const socket = io('http://localhost:8000');
 
 socket.on('connect', () => {
-    console.log('Connected to server');
+    console.log('Connected to the server');
+    socket.emit('message', { query: 'How many pending trainings do I have?' });
 });
 
-socket.on('chat_response', (data) => {
-    console.log('Response from server:', data);
+socket.on('chat_response', (response) => {
+    console.log('Received response:', response);
 });
 
-function sendMessage(query) {
-    socket.emit('message', { query: query });
-}
-
-// Example usage
-document.getElementById('sendButton').addEventListener('click', () => {
-    const query = document.getElementById('queryInput').value;
-    sendMessage(query);
+socket.on('disconnect', () => {
+    console.log('Disconnected from the server');
 });

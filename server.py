@@ -38,9 +38,9 @@ async def get_response_from_gpt(query):
         return "An error occurred while processing your request."
 
 # Function to fetch training data from the API
-async def fetch_trainings(status, employee_id):
+async def fetch_trainings(status, employee_id, company_id):
     try:
-        url = f"http://testapi.romeohr.com/app/v1/{employee_id}/training"
+        url = f"http://testapi.romeohr.com/app/v1/{company_id}/training/employee/{employee_id}"
         headers = {
             "Authorization": f"Bearer {os.getenv('ACCESS_TOKEN')}"
         }
@@ -75,21 +75,27 @@ async def message(sid, data):
             else:
                 response_text = await get_response_from_gpt(data["query"])
         elif session["state"] == "awaiting_employee_id":
-            employee_id = data["query"].strip()
-            print(f"Fetching trainings for employee ID: {employee_id}")
+            session["employee_id"] = data["query"].strip()
+            session["state"] = "awaiting_company_id"
+            await sio.save_session(sid, session)
+            response_text = "Enter your Company ID"
+        elif session["state"] == "awaiting_company_id":
+            session["company_id"] = data["query"].strip()
+            employee_id = session["employee_id"]
+            company_id = session["company_id"]
 
-            pending_trainings = await fetch_trainings("pending", employee_id)
-            completed_trainings = await fetch_trainings("completed", employee_id)
+            print(f"Fetching trainings for employee ID: {employee_id} and company ID: {company_id}")
 
-            # Check the type and structure of the response
-            if isinstance(pending_trainings, dict) and isinstance(completed_trainings, dict):
-                pending_count = pending_trainings.get('pending_trainings', 0)
-                completed_count = completed_trainings.get('completed_trainings', 0)
-            else:
-                pending_count = 0
-                completed_count = 0
+            pending_trainings = await fetch_trainings("pending", employee_id, company_id)
+            completed_trainings = await fetch_trainings("completed", employee_id, company_id)
 
-            response_text = f"You have {pending_count} pending trainings and {completed_count} completed trainings."
+            # Extract training names from the response
+            pending_training_names = [training['name'] for training in pending_trainings]
+            completed_training_names = [training['name'] for training in completed_trainings]
+
+            response_text = (f"You have {len(pending_training_names)} pending trainings: {', '.join(pending_training_names)}. "
+                             f"You have completed {len(completed_training_names)} trainings: {', '.join(completed_training_names)}.")
+
             print(f"Response: {response_text}")
 
             session["state"] = "initial"
